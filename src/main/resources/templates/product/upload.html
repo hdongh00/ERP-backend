@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ERP 자재 등록</title>
+</head>
+<body>
+<h2>📂 자재 엑셀 대량 등록</h2>
+
+<form action="/product/upload" method="post" enctype="multipart/form-data">
+    <label>엑셀 파일 선택 (.xlsx): </label>
+    <input type="file" name="file" accept=".xlsx, .xls" required>
+    <br><br>
+    <button type="submit">🚀 업로드 및 저장</button>
+</form>
+</body>
+</html>

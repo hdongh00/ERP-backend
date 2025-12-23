@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>자재 목록</title>
+    <style>
+        /* 간단한 표 스타일링 (SI 느낌) */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        .danger { color: red; font-weight: bold; } /* 재고 부족 경고용 */
+    </style>
+</head>
+<body>
+<h2>📋 자재 현황 리스트</h2>
+
+<a href="/product/upload">➕ 엑셀 등록하러 가기</a>
+<br><br>
+
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>품목명</th>
+        <th>단가</th>
+        <th>현재고</th>
+        <th>안전재고</th>
+        <th>상태</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="item : ${productList}">
+        <td th:text="${item.id}">1</td>
+        <td th:text="${item.name}">삼성 램</td>
+        <td th:text="${#numbers.formatInteger(item.price, 0, 'COMMA') + '원'}">50,000원</td>
+        <td th:text="${item.stockQuantity}">100</td>
+        <td th:text="${item.safetyStock}">10</td>
+
+        <td>
+            <span th:if="${item.stockQuantity < item.safetyStock}" class="danger">🚨 발주필요</span>
+            <span th:unless="${item.stockQuantity < item.safetyStock}">정상</span>
+        </td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
