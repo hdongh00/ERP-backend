@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>발주 기안서 작성</title>
+</head>
+<body>
+<h2>📝 발주 요청 기안서</h2>
+
+<form action="/approval/new" method="post">
+    <label>신청자 이름:</label>
+    <input type="text" name="requesterName" placeholder="홍길동" required><br><br>
+
+    <label>발주할 품목:</label>
+    <select name="productId">
+        <option th:each="p : ${products}"
+                th:value="${p.id}"
+                th:text="${p.name} + ' (현재고: ' + ${p.stockQuantity} + ')'">
+        </option>
+    </select><br><br>
+
+    <label>요청 수량:</label>
+    <input type="number" name="quantity" min="1" value="10" required> 개<br><br>
+
+    <button type="submit">결재 올리기</button>
+</form>
+</body>
+</html>

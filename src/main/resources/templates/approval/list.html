@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>전자결재함</title>
+    <style>
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        .WAIT { color: orange; font-weight: bold; }
+        .APPROVED { color: green; font-weight: bold; }
+        .REJECTED { color: red; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+<h2>📑 전자결재 현황</h2>
+<a href="/approval/new">➕ 새 발주 신청하기</a> | <a href="/product/list">📦 자재 현황 보기</a>
+<br><br>
+
+<table>
+    <thead>
+    <tr>
+        <th>No</th>
+        <th>기안자</th>
+        <th>품목명</th>
+        <th>요청수량</th>
+        <th>상태</th>
+        <th>관리</th> </tr>
+    </thead>
+    <tbody>
+    <tr th:each="app : ${approvals}">
+        <td th:text="${app.id}">1</td>
+        <td th:text="${app.requesterName}">홍길동</td>
+        <td th:text="${app.product.name}">삼성 램</td>
+        <td th:text="${app.quantity} + '개'">10개</td>
+
+        <td th:text="${app.status}" th:class="${app.status}">WAIT</td>
+
+        <td>
+            <div th:if="${app.status.name() == 'WAIT'}" style="display:flex; justify-content:center; gap:5px;">
+
+                <form th:action="@{/approval/{id}/approve(id=${app.id})}" method="post">
+                    <button type="submit" style="color:blue;">✅ 승인</button>
+                </form>
+
+                <form th:action="@{/approval/{id}/reject(id=${app.id})}" method="post">
+                    <button type="submit" style="color:red;">❌ 반려</button>
+                </form>
+            </div>
+
+            <span th:unless="${app.status.name() == 'WAIT'}">처리완료</span>
+        </td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
