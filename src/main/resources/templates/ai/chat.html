@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 재고 비서</title>
+    <style>
+        /* 간단한 카톡 스타일 디자인 */
+        body { background-color: #f2f2f2; font-family: 'Malgun Gothic', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .chat-container { width: 400px; height: 600px; background-color: white; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background-color: #3b5998; color: white; padding: 15px; text-align: center; font-weight: bold; }
+
+        /* 채팅 내용 영역 */
+        .chat-box { flex: 1; padding: 15px; overflow-y: auto; background-color: #e9e9e9; display: flex; flex-direction: column; gap: 10px; }
+
+        /* 말풍선 공통 */
+        .message { max-width: 70%; padding: 10px 15px; border-radius: 15px; font-size: 14px; line-height: 1.4; }
+
+        /* 내 말풍선 (오른쪽) */
+        .my-message { align-self: flex-end; background-color: #ffeb33; color: black; border-top-right-radius: 0; }
+
+        /* AI 말풍선 (왼쪽) */
+        .ai-message { align-self: flex-start; background-color: white; color: black; border: 1px solid #ddd; border-top-left-radius: 0; }
+
+        /* 입력창 영역 */
+        .input-area { padding: 10px; background-color: white; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+        button { padding: 10px 20px; background-color: #3b5998; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #2d4373; }
+        button:disabled { background-color: #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">🤖 AI 재고 관리 비서</div>
+
+    <div class="chat-box" id="chatBox">
+        <div class="message ai-message">안녕하세요! 재고에 대해 무엇이든 물어보세요.</div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="questionInput" placeholder="질문을 입력하세요..." onkeypress="handleEnter(event)">
+        <button onclick="sendQuestion()" id="sendBtn">전송</button>
+    </div>
+</div>
+
+<script>
+    async function sendQuestion() {
+        const input = document.getElementById('questionInput');
+        const chatBox = document.getElementById('chatBox');
+        const sendBtn = document.getElementById('sendBtn');
+        const question = input.value.trim();
+
+        if (!question) return;
+
+        // 내 말풍선 추가
+        addMessage(question, 'my-message');
+        input.value = '';
+        input.disabled = true;
+        sendBtn.disabled = true;
+
+        const loadingId = 'loading-' + Date.now();
+        addMessage('...', 'ai-message', loadingId);
+
+        try {
+            // 서버 요청
+            const response = await fetch(`/ai/ask?q=${encodeURIComponent(question)}`);
+            const answer = await response.text();
+
+            // 로딩 말풍선을 찾아서 진짜 대답으로 바꿔치기
+            const loadingBubble = document.getElementById(loadingId);
+            if (loadingBubble) {
+                loadingBubble.innerText = answer;
+            } else {
+                addMessage(answer, 'ai-message');
+            }
+
+        } catch (error) {
+            // 에러 나면 로딩 말풍선에 에러 메시지 표시
+            const loadingBubble = document.getElementById(loadingId);
+            if (loadingBubble) {
+                loadingBubble.innerText = "오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+            }
+        } finally {
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    // 말풍선 그리는 함수 (id 파라미터 추가됨)
+    function addMessage(text, className, id = null) {
+        const chatBox = document.getElementById('chatBox');
+        const div = document.createElement('div');
+        div.classList.add('message', className);
+        div.innerText = text;
+        if (id) {
+            div.id = id; // 나중에 내용을 바꾸기 위해 ID 부여
+        }
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function handleEnter(event) {
+        if (event.key === 'Enter') {
+            sendQuestion();
+        }
+    }
+</script>
+
+</body>
+</html>
