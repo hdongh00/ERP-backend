@@ -27,6 +27,10 @@ public class Product extends BaseEntity {
     @Column(columnDefinition = "TEXT") //postgre에서 긴 글은 TEXT 타입 사용
     private String description;
 
+    //낙관적 락을 위한 버전 관리
+    @Version
+    private Long version;
+
     //생성자 대신 빌더 패턴 사용(객체 생성 시 명확성 확보)
     @Builder
     public Product(String name, Integer price, Integer stockQuantity, Integer safetyStock, String description) {

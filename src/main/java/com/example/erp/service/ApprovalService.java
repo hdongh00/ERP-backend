@@ -39,9 +39,11 @@ public class ApprovalService {
     /**
      * 결재 목록 조회
      * 팀장이 볼 리스트
+     * N+1 문제 해결
      */
     public List<Approval> getAllApprovals(){
-        return approvalRepository.findAll();
+        //return approvalRepository.findAll();
+        return approvalRepository.findAllWithProduct();
     }
     /**
      * 결재 승인
