@@ -5,7 +5,7 @@ import lombok.*;
 
 @Entity
 @Table(name = "products") //테이블 명은 복수형으로 명시
-@Getter
+@Getter @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // 기본 생성자 막아서 안전하게
 @ToString(of = {"id", "name", "price"}) //로그 찍을 때 무한루프 방지
 public class Product extends BaseEntity {
@@ -39,6 +39,13 @@ public class Product extends BaseEntity {
         this.stockQuantity = stockQuantity;
         this.safetyStock = safetyStock;
         this.description = description;
+    }
+
+    public String getStatus() {
+        if(this.stockQuantity < this.safetyStock) {
+            return "재고 부족";
+        }
+        return "정상";
     }
 
     //비즈니스 로직(재고 증가)

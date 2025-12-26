@@ -79,4 +79,15 @@ public class ApprovalService {
         }
         approval.reject();
     }
+
+    //이름으로 찾아서 기안 올리기
+    @Transactional
+    public String createDraftByAi(String productName, int quantity){
+        //이름으로 상품 찾기
+        Product product = productRepository.findByName(productName)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다: " + productName));
+
+        createApproval(product.getId(), quantity, "AI 비서");
+        return "결재 기안 등록 완료: " + productName + " " + quantity + "개 (상태: 대기중)";
+    }
 }
