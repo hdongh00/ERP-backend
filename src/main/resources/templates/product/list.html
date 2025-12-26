@@ -6,6 +6,9 @@
     <title>자재 목록</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <style>
         /* 기본 테이블 스타일 */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -27,8 +30,9 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.3);
             z-index: 1000; /* 제일 위에 뜨게 함 */
             flex-direction: column;
-            overflow: hidden;
             border: 1px solid #ddd;
+            min-width: 300px;   /* 너무 작아짐 방지 */
+            max-width: 800px;
         }
 
         /* 채팅창 헤더 */
@@ -90,10 +94,16 @@
             <span class="me-3 fw-bold text-secondary">
                 👤 <span sec:authentication="name">사용자</span>님
             </span>
+
+        <button sec:authorize="hasRole('ADMIN')"
+                id="approvalBtn"
+                onclick="openApprovalModal()"
+                class="btn btn-warning btn-sm fw-bold text-white">
+            🔔 결재 대기 (<span id="pendingCount">0</span>)
+        </button>
+
         <a href="/product/upload" class="btn btn-primary btn-sm">➕ 엑셀 등록</a>
-
         <button onclick="toggleChat()" class="btn btn-success btn-sm">🤖 AI 비서</button>
-
         <a href="/logout" class="btn btn-danger btn-sm">로그아웃</a>
     </div>
 </div>
@@ -124,6 +134,26 @@
     </tbody>
 </table>
 
+<div id="approvalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;">
+    <div style="background: white; width: 600px; margin: 100px auto; padding: 20px; border-radius: 10px; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 class="mb-3">📑 결재 대기 목록</h3>
+        <button onclick="closeApprovalModal()" style="position: absolute; top: 15px; right: 20px; border: none; background: transparent; font-size: 24px; cursor: pointer;">&times;</button>
+
+        <table class="table table-bordered mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>품목</th>
+                <th>수량</th>
+                <th>기안자</th>
+                <th>관리</th>
+            </tr>
+            </thead>
+            <tbody id="approvalListBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <div id="chatModal">
     <div class="chat-header">
         <span>🤖 AI 재고 비서</span>
@@ -141,6 +171,88 @@
 </div>
 
 <script>
+    // 페이지 로드 시 알림 개수 확인
+    document.addEventListener("DOMContentLoaded", function() {
+        //관리자 버튼이 화면에 존재할 때
+        if(document.getElementById('approvalBtn')){
+        fetchPendingApprovals();
+        }
+        $("#chatModal").resizable({
+            handles: "all",
+            minHeight: 400,
+            minWidth: 300
+        });
+        $("#chatModal").draggable({ handle: ".chat-header" });
+    });
+
+    // 서버에서 대기 목록 가져오기 (AJAX)
+    function fetchPendingApprovals() {
+        fetch('/api/approval/pending')
+            .then(response => response.json())
+            .then(data => {
+                // 알림 배지 숫자 업데이트
+                document.getElementById('pendingCount').innerText = data.length;
+                renderApprovalList(data);
+            })
+            .catch(error => console.error("결재 목록 불러오기 실패:", error));
+    }
+
+    // 모달 열기
+    function openApprovalModal() {
+        fetchPendingApprovals(); // 열 때마다 최신화
+        document.getElementById('approvalModal').style.display = 'block';
+    }
+
+    // 모달 닫기
+    function closeApprovalModal() {
+        document.getElementById('approvalModal').style.display = 'none';
+    }
+
+    // 목록 그리기
+    function renderApprovalList(list) {
+        const tbody = document.getElementById('approvalListBody');
+        tbody.innerHTML = ''; // 초기화
+
+        if(list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3">대기 중인 결재가 없습니다.</td></tr>';
+            return;
+        }
+
+        list.forEach(item => {
+            // item.product가 있으면 이름 사용, 없으면 예외처리
+            const productName = item.product ? item.product.name : "상품정보없음";
+
+            const row = `
+                <tr>
+                    <td>${productName}</td>
+                    <td>${item.quantity}개</td>
+                    <td>${item.requesterName}</td>
+                    <td>
+                        <button onclick="processApproval(${item.id}, 'approve')" class="btn btn-success btn-sm">승인</button>
+                        <button onclick="processApproval(${item.id}, 'reject')" class="btn btn-danger btn-sm">반려</button>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    // 승인/반려 처리
+    function processApproval(id, action) {
+        if(!confirm(action === 'approve' ? "승인하시겠습니까?" : "반려하시겠습니까?")) return;
+
+        fetch(`/approval/${id}/${action}`, { method: 'POST' })
+            .then(response => {
+                if(response.ok) {
+                    alert("처리되었습니다.");
+                    fetchPendingApprovals(); // 모달 목록 새로고침
+                    // 승인의 경우 재고가 변하므로 뒷배경 테이블도 새로고침
+                    if(action === 'approve') refreshTable();
+                } else {
+                    alert("처리 실패!");
+                }
+            });
+    }
     // 채팅창 열고 닫기 함수
     function toggleChat() {
         const modal = document.getElementById('chatModal');
@@ -178,6 +290,7 @@
                     currentTbody.style.backgroundColor = "transparent";
                 }, 500);
             }
+            fetchPendingApprovals();
         } catch (error) {
             console.error("표 업데이트 실패:", error);
         }
