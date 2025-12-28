@@ -6,6 +6,7 @@ import com.example.erp.entity.Product;
 import com.example.erp.repository.ApprovalRepository;
 import com.example.erp.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,7 +88,10 @@ public class ApprovalService {
         Product product = productRepository.findByName(productName)
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다: " + productName));
 
-        createApproval(product.getId(), quantity, "AI 비서");
+        //현재 로그인한 사용자의 아이디 가져옴
+        String currentUserName = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        createApproval(product.getId(), quantity, currentUserName);
         return "결재 기안 등록 완료: " + productName + " " + quantity + "개 (상태: 대기중)";
     }
 }

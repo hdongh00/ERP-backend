@@ -10,7 +10,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <style>
-        /* 기본 테이블 스타일 */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: center; vertical-align: middle; }
         th { background-color: #f8f9fa; }
@@ -92,7 +91,7 @@
     <h2 class="m-0">📋 자재 현황 리스트</h2>
     <div class="d-flex align-items-center gap-2">
             <span class="me-3 fw-bold text-secondary">
-                👤 <span sec:authentication="name">사용자</span>님
+                👤 <span id="loggedInUser" sec:authentication="name">사용자</span>님
             </span>
 
         <button sec:authorize="hasRole('ADMIN')"
@@ -104,7 +103,11 @@
 
         <a href="/product/upload" class="btn btn-primary btn-sm">➕ 엑셀 등록</a>
         <button onclick="toggleChat()" class="btn btn-success btn-sm">🤖 AI 비서</button>
-        <a href="/logout" class="btn btn-danger btn-sm">로그아웃</a>
+        <a href="/logout"
+           onclick="sessionStorage.clear()"
+           class="btn btn-danger btn-sm">
+            로그아웃
+        </a>
     </div>
 </div>
 
@@ -133,6 +136,31 @@
     </tr>
     </tbody>
 </table>
+
+<div th:if="${!productList.isEmpty()}">
+    <ul class="pagination justify-content-center">
+
+        <li class="page-item" th:classappend="${productList.first} ? 'disabled'">
+            <a class="page-link" th:href="@{/product/list(page=${productList.number - 1})}">
+                <span>&laquo; 이전</span>
+            </a>
+        </li>
+
+        <li th:each="page: ${#numbers.sequence(0, productList.totalPages - 1)}"
+            th:if="${page >= productList.number - 2 and page <= productList.number + 2}"
+            class="page-item"
+            th:classappend="${page == productList.number} ? 'active'">
+            <a class="page-link" th:text="${page + 1}" th:href="@{/product/list(page=${page})}">1</a>
+        </li>
+
+        <li class="page-item" th:classappend="${productList.last} ? 'disabled'">
+            <a class="page-link" th:href="@{/product/list(page=${productList.number + 1})}">
+                <span>다음 &raquo;</span>
+            </a>
+        </li>
+
+    </ul>
+</div>
 
 <div id="approvalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;">
     <div style="background: white; width: 600px; margin: 100px auto; padding: 20px; border-radius: 10px; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
@@ -171,135 +199,186 @@
 </div>
 
 <script>
-    // 페이지 로드 시 알림 개수 확인
+    const STORAGE_KEY_HISTORY = "chatHistory";
+    const STORAGE_KEY_STATE = "chatState";   // 상태 저장(열림/닫힘)
+    const STORAGE_KEY_POSITION = "chatPosition";
+    const STORAGE_KEY_SIZE = "chatSize";
+    const STORAGE_KEY_USER = "chatUser";
+
+    // ==========================================
+    // 초기화 및 설정 로직
+    // ==========================================
     document.addEventListener("DOMContentLoaded", function() {
-        //관리자 버튼이 화면에 존재할 때
+
+        // 로그인 페이지에서 넘어왔으면 초기화 (새 출발)
+        // (참고: 로그인 페이지 주소가 '/login'이 포함된다고 가정)
+        if (document.referrer.includes('/login')) {
+            console.log("로그인 직후 접근: 설정을 초기화합니다.");
+            sessionStorage.clear();
+        }
+
+        // 사용자 본인 확인 (다른 사람 로그인 시 초기화)
+        const userSpan = document.getElementById('loggedInUser');
+        if (userSpan) {
+            const currentUser = userSpan.innerText.trim();
+            const savedUser = sessionStorage.getItem(STORAGE_KEY_USER);
+
+            if (savedUser && savedUser !== currentUser) {
+                sessionStorage.clear();
+            }
+            sessionStorage.setItem(STORAGE_KEY_USER, currentUser);
+        }
+
+        // (1) 관리자 버튼 확인
         if(document.getElementById('approvalBtn')){
-        fetchPendingApprovals();
-        }
-        $("#chatModal").resizable({
-            handles: "all",
-            minHeight: 400,
-            minWidth: 300
-        });
-        $("#chatModal").draggable({ handle: ".chat-header" });
-    });
-
-    // 서버에서 대기 목록 가져오기 (AJAX)
-    function fetchPendingApprovals() {
-        fetch('/api/approval/pending')
-            .then(response => response.json())
-            .then(data => {
-                // 알림 배지 숫자 업데이트
-                document.getElementById('pendingCount').innerText = data.length;
-                renderApprovalList(data);
-            })
-            .catch(error => console.error("결재 목록 불러오기 실패:", error));
-    }
-
-    // 모달 열기
-    function openApprovalModal() {
-        fetchPendingApprovals(); // 열 때마다 최신화
-        document.getElementById('approvalModal').style.display = 'block';
-    }
-
-    // 모달 닫기
-    function closeApprovalModal() {
-        document.getElementById('approvalModal').style.display = 'none';
-    }
-
-    // 목록 그리기
-    function renderApprovalList(list) {
-        const tbody = document.getElementById('approvalListBody');
-        tbody.innerHTML = ''; // 초기화
-
-        if(list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3">대기 중인 결재가 없습니다.</td></tr>';
-            return;
+            fetchPendingApprovals();
         }
 
-        list.forEach(item => {
-            // item.product가 있으면 이름 사용, 없으면 예외처리
-            const productName = item.product ? item.product.name : "상품정보없음";
+        const modal = document.getElementById('chatModal');
 
-            const row = `
-                <tr>
-                    <td>${productName}</td>
-                    <td>${item.quantity}개</td>
-                    <td>${item.requesterName}</td>
-                    <td>
-                        <button onclick="processApproval(${item.id}, 'approve')" class="btn btn-success btn-sm">승인</button>
-                        <button onclick="processApproval(${item.id}, 'reject')" class="btn btn-danger btn-sm">반려</button>
-                    </td>
-                </tr>
-            `;
-            tbody.innerHTML += row;
-        });
-    }
+        // (2) 위치 & 크기 복구 (스타일 먼저 적용해서 깜빡임 방지)
+        const savedPos = sessionStorage.getItem(STORAGE_KEY_POSITION);
+        const savedSize = sessionStorage.getItem(STORAGE_KEY_SIZE);
 
-    // 승인/반려 처리
-    function processApproval(id, action) {
-        if(!confirm(action === 'approve' ? "승인하시겠습니까?" : "반려하시겠습니까?")) return;
+        if (modal) {
+            if (savedPos) {
+                const pos = JSON.parse(savedPos);
+                modal.style.top = pos.top + "px";
+                modal.style.left = pos.left + "px";
+                modal.style.bottom = "auto";
+                modal.style.right = "auto";
+            }
+            if (savedSize) {
+                const size = JSON.parse(savedSize);
+                modal.style.width = size.width + "px";
+                modal.style.height = size.height + "px";
+            }
+        }
 
-        fetch(`/approval/${id}/${action}`, { method: 'POST' })
-            .then(response => {
-                if(response.ok) {
-                    alert("처리되었습니다.");
-                    fetchPendingApprovals(); // 모달 목록 새로고침
-                    // 승인의 경우 재고가 변하므로 뒷배경 테이블도 새로고침
-                    if(action === 'approve') refreshTable();
-                } else {
-                    alert("처리 실패!");
+        // (3) jQuery UI 설정 (드래그/리사이즈 + 저장)
+        if (typeof $ !== 'undefined') {
+            $("#chatModal").draggable({
+                handle: ".chat-header",
+                containment: "window",
+                stop: function(event, ui) {
+                    sessionStorage.setItem(STORAGE_KEY_POSITION, JSON.stringify(ui.position));
                 }
             });
-    }
-    // 채팅창 열고 닫기 함수
+
+            $("#chatModal").resizable({
+                handles: "all",
+                minHeight: 400, minWidth: 300,
+                stop: function(event, ui) {
+                    sessionStorage.setItem(STORAGE_KEY_SIZE, JSON.stringify(ui.size));
+                }
+            });
+        }
+
+        // (4) 상태 복구 (열려있던 경우에만 켬)
+        // 로그인 직후엔 위에서 clear() 되어서 무조건 닫힘 상태가 됨
+        const chatState = sessionStorage.getItem(STORAGE_KEY_STATE);
+        if (chatState === 'open' && modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                const chatBox = document.getElementById('chatBox');
+                if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+            }, 100);
+        }
+
+        // (5) 대화 기록 복구
+        loadChatHistory();
+    });
+
+    // ==========================================
+    // 채팅 UI 조작 (상태 저장 포함)
+    // ==========================================
+
     function toggleChat() {
         const modal = document.getElementById('chatModal');
-        // 현재 안 보이면 -> 보이게(flex), 보이면 -> 숨기게(none)
+
         if (modal.style.display === 'none' || modal.style.display === '') {
+            // 열기
             modal.style.display = 'flex';
-            document.getElementById('questionInput').focus(); // 열리자마자 입력창에 커서
+            document.getElementById('questionInput').focus();
+            sessionStorage.setItem(STORAGE_KEY_STATE, 'open'); // ✨ 상태 저장: 열림
+
+            // 스크롤 맨 아래로
+            setTimeout(() => {
+                const chatBox = document.getElementById('chatBox');
+                if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+            }, 10);
+
         } else {
+            // 닫기
             modal.style.display = 'none';
-        }
-    }
-    //페이지 새로고침없이 표만 업데이트
-    async function refreshTable() {
-        try {
-            // 1. 현재 페이지 주소('/product/list')로 조용히 요청을 보냄
-            const response = await fetch(window.location.href);
-            const htmlText = await response.text();
-
-            // 2. 받아온 HTML 텍스트를 가상의 문서(Virtual DOM)로 변환
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlText, 'text/html');
-
-            // 3. 가상 문서에서 최신 'tbody'만 쏙 뽑아냄
-            const newTbody = doc.querySelector('tbody');
-
-            // 4. 현재 화면의 'tbody'를 찾아서 내용만 교체
-            const currentTbody = document.querySelector('tbody');
-            if (newTbody && currentTbody) {
-                currentTbody.innerHTML = newTbody.innerHTML;
-
-                // (선택사항) 업데이트 됐다는 걸 시각적으로 알려주기 위해 깜빡임 효과
-                currentTbody.style.transition = "background-color 0.5s";
-                currentTbody.style.backgroundColor = "#e8f0fe"; // 살짝 파란색
-                setTimeout(() => {
-                    currentTbody.style.backgroundColor = "transparent";
-                }, 500);
-            }
-            fetchPendingApprovals();
-        } catch (error) {
-            console.error("표 업데이트 실패:", error);
+            sessionStorage.setItem(STORAGE_KEY_STATE, 'closed'); // ✨ 상태 저장: 닫힘
         }
     }
 
-    // 질문 전송 함수 (기존과 동일 로직)
+    // ==========================================
+    // 기록 관리 및 메시지 처리 (기존 유지)
+    // ==========================================
+
+    function loadChatHistory() {
+        const savedHistory = sessionStorage.getItem(STORAGE_KEY_HISTORY);
+        const chatBox = document.getElementById('chatBox');
+        if (savedHistory && chatBox) {
+            // 일단 화면을 싹 지움(이때 원래 있던 인사말도 날아감)
+            chatBox.innerHTML = '';
+
+            // [핵심] 날아간 인사말을 다시 만들어 넣어줌
+            const greetingDiv = document.createElement('div');
+            greetingDiv.classList.add('message', 'ai-message');
+            greetingDiv.innerText = "안녕하세요! 무엇을 도와드릴까요?";
+            chatBox.appendChild(greetingDiv);
+
+            // 그 뒤에 아까 하던 대화를 이어 붙임
+            const historyArray = JSON.parse(savedHistory);
+            historyArray.forEach(msg => {
+                // 저장된 건 다시 저장하지 않음
+                renderMessage(msg.text, msg.className, null, false);
+            });
+
+            // 스크롤 맨 아래로
+            setTimeout(() => {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 10);
+        }
+    }
+
+    function saveChatHistory(text, className) {
+        let history = JSON.parse(sessionStorage.getItem(STORAGE_KEY_HISTORY)) || [];
+        if (history.length === 0 && text.includes("무엇을 도와드릴까요")) return;
+        history.push({ text: text, className: className });
+        sessionStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
+    }
+
+    function addMessage(text, className, id = null) {
+        renderMessage(text, className, id, true);
+    }
+
+    function renderMessage(text, className, id, saveFlag) {
+        const chatBox = document.getElementById('chatBox');
+        if (!chatBox) return;
+
+        const div = document.createElement('div');
+        div.classList.add('message', className);
+        div.innerText = text;
+        if (id) div.id = id;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        if (saveFlag && id === null && text !== '...') {
+            saveChatHistory(text, className);
+        }
+    }
+
+    function handleEnter(event) {
+        if (event.key === 'Enter') sendQuestion();
+    }
+
     async function sendQuestion() {
         const input = document.getElementById('questionInput');
-        const chatBox = document.getElementById('chatBox');
         const sendBtn = document.getElementById('sendBtn');
         const question = input.value.trim();
 
@@ -310,30 +389,20 @@
         input.disabled = true;
         sendBtn.disabled = true;
 
-        // 로딩 표시
         const loadingId = 'loading-' + Date.now();
         addMessage('...', 'ai-message', loadingId);
 
         try {
-            // API 호출
             const response = await fetch(`/ai/ask?q=${encodeURIComponent(question)}`);
             const answer = await response.text();
 
-            // 로딩을 진짜 답변으로 교체
             const loadingBubble = document.getElementById(loadingId);
-            if (loadingBubble) {
-                loadingBubble.innerText = answer;
-                // 줄바꿈 문자(\n)가 있으면 HTML 줄바꿈(<br>)으로 변경해서 보여주고 싶다면 아래 코드 사용
-                // loadingBubble.innerHTML = answer.replace(/\n/g, '<br>');
-            } else {
-                addMessage(answer, 'ai-message');
-            }
-            // AI가 일을 했다면, 화면 자동 갱신
-            if (answer.includes("완료") || answer.includes("성공") || answer.includes("취소")) {
-                // 사용자가 답변을 읽을 시간(1.5초)을 주고 새로고침
-                setTimeout(() => {
-                    refreshTable();
-                }, 1000);
+            if (loadingBubble) loadingBubble.remove();
+
+            addMessage(answer, 'ai-message');
+
+            if (answer.includes("완료") || answer.includes("성공") || answer.includes("취소") || answer.includes("기안")) {
+                setTimeout(() => refreshTable(), 1000);
             }
         } catch (error) {
             const loadingBubble = document.getElementById(loadingId);
@@ -345,18 +414,81 @@
         }
     }
 
-    function addMessage(text, className, id = null) {
-        const chatBox = document.getElementById('chatBox');
-        const div = document.createElement('div');
-        div.classList.add('message', className);
-        div.innerText = text;
-        if (id) div.id = id;
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
+    // ==========================================
+    // 결재 및 테이블 함수
+    // ==========================================
+
+    function fetchPendingApprovals() {
+        fetch('/api/approval/pending')
+            .then(res => res.json())
+            .then(data => {
+                if(document.getElementById('pendingCount')) document.getElementById('pendingCount').innerText = data.length;
+                renderApprovalList(data);
+            })
+            .catch(e => console.error(e));
     }
 
-    function handleEnter(event) {
-        if (event.key === 'Enter') sendQuestion();
+    function openApprovalModal() {
+        fetchPendingApprovals();
+        document.getElementById('approvalModal').style.display = 'block';
+    }
+
+    function closeApprovalModal() {
+        document.getElementById('approvalModal').style.display = 'none';
+    }
+
+    function renderApprovalList(list) {
+        const tbody = document.getElementById('approvalListBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        if(list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3">대기 중인 결재가 없습니다.</td></tr>';
+            return;
+        }
+        list.forEach(item => {
+            const productName = item.product ? item.product.name : "상품정보없음";
+            const row = `
+                <tr>
+                    <td>${productName}</td>
+                    <td>${item.quantity}개</td>
+                    <td>${item.requesterName}</td>
+                    <td>
+                        <button onclick="processApproval(${item.id}, 'approve')" class="btn btn-success btn-sm">승인</button>
+                        <button onclick="processApproval(${item.id}, 'reject')" class="btn btn-danger btn-sm">반려</button>
+                    </td>
+                </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function processApproval(id, action) {
+        if(!confirm(action === 'approve' ? "승인하시겠습니까?" : "반려하시겠습니까?")) return;
+        fetch(`/approval/${id}/${action}`, { method: 'POST' })
+            .then(res => {
+                if(res.ok) {
+                    alert("처리되었습니다.");
+                    fetchPendingApprovals();
+                    if(action === 'approve') refreshTable();
+                } else alert("처리 실패!");
+            });
+    }
+
+    async function refreshTable() {
+        try {
+            const response = await fetch(window.location.href);
+            const htmlText = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+            const newTbody = doc.querySelector('tbody');
+            const currentTbody = document.querySelector('tbody');
+            if (newTbody && currentTbody) {
+                currentTbody.innerHTML = newTbody.innerHTML;
+                currentTbody.style.transition = "background-color 0.5s";
+                currentTbody.style.backgroundColor = "#e8f0fe";
+                setTimeout(() => currentTbody.style.backgroundColor = "transparent", 500);
+            }
+            if(document.getElementById('approvalBtn')) fetchPendingApprovals();
+        } catch (e) { console.error(e); }
     }
 </script>
 </body>
