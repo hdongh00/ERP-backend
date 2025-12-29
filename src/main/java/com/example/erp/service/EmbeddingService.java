@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +53,8 @@ public class EmbeddingService {
             );
 
             //Spring AI 전용 "Document"객체로 변환
-            documents.add(new Document(content, metadata));
+            String uniqueId = UUID.nameUUIDFromBytes(String.valueOf(product.getId()).getBytes()).toString();
+            documents.add(new Document(uniqueId, content, metadata));
         }
         //벡터 저장소에 저장
         if(!documents.isEmpty()){

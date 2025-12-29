@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
@@ -78,6 +79,31 @@ public class ProductController {
         //productList라는 이름을 붙여서 보여줌
         model.addAttribute("productList", paging);
         return "product/list";
+    }
+    @GetMapping("/product/edit/{id}")
+    public String editForm(@PathVariable Long id, Model model) {
+        Product product = productService.getProduct(id);
+
+        //기존 정보를 폼에 채워서 보냄
+        ProductForm form = new ProductForm();
+        form.setName(product.getName());
+        form.setPrice(product.getPrice());
+        form.setStockQuantity(product.getStockQuantity());
+        form.setSafetyStock(product.getSafetyStock());
+        form.setDescription(product.getDescription());
+
+        model.addAttribute("productForm", form);
+        model.addAttribute("productId", id);
+
+        return "product/edit";
+    }
+    @PostMapping("/product/edit/{id}")
+    public String edit(@PathVariable Long id, @Valid ProductForm form, BindingResult bindingResult) {
+        if(bindingResult.hasErrors()){
+            return "product/edit";
+        }
+        productService.updateProduct(id, form);
+        return "redirect:/product/list";
     }
 
     //테스트용

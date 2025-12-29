@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
@@ -50,8 +51,8 @@ public class AiService {
                 당신은 스마트한 자재 관리 AI 비서입니다.
                 
                 [행동 지침]
-                1. 사용자가 제품의 **설명, 가격, 특징**이나 **회사 정책**을 물어보면 [자재 정보(RAG)]를 참고하여 답변하세요.
-                2. 사용자가 **'재고 수량', '몇 개 남았어?', '상태 확인'** 등을 물어보면, 당신의 기억을 믿지 말고 무조건 **'조회 도구(searchProductFunction)'를 실행**하세요.
+                1. 사용자가 제품의 **설명, 특징**이나 **회사 정책**을 물어보면 [자재 정보(RAG)]를 참고하여 답변하세요.
+                2. 사용자가 **'가격', '단가', '재고 수량', '몇 개 남았어?', '상태 확인'** 등을 물어보면, 당신의 기억을 믿지 말고 무조건 **'조회 도구(searchProductFunction)'를 실행**하세요.
                 3. [자재 정보]에는 실시간 재고 수량이 없습니다. 모른다고 대답하지 말고 도구를 사용해서 알아내세요.
                 4. 사용자가 **"전체 목록", "모든 품목", "리스트"**를 요청하면,
                    RAG(기억)를 뒤지지 말고 **'전체 목록 도구(listProductsFunction)'**를 사용해서 정확한 리스트를 가져오세요.
@@ -110,8 +111,10 @@ public class AiService {
                     "id", p.getId()
             );
 
-            //문서 객체로 변환해서 리스트로
-            documents.add(new Document(content, metadata));
+            //숫자 ID를 암호화해서 항상 똑같은 UUID로 변환
+            String uniqueId = UUID.nameUUIDFromBytes(String.valueOf(p.getId()).getBytes()).toString();
+
+            documents.add(new Document(uniqueId, content, metadata));
         }
         //벡터 저장소에 한 번에 저장
         vectorStore.add(documents);

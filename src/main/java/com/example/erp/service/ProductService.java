@@ -1,5 +1,6 @@
 package com.example.erp.service;
 
+import com.example.erp.dto.ProductForm;
 import com.example.erp.entity.Product;
 import com.example.erp.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -118,5 +119,27 @@ public class ProductService {
 
         //AI 동기화
         aiService.addProduct(savedProduct);
+    }
+    /**
+     * 상품 수정
+     * Dirty Checking: 값을 바꾸면 트랜잭션 끝날 때 알아서 UPDATE 쿼리가 나감
+     */
+    @Transactional
+    public void updateProduct(Long id, ProductForm form){
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다."));
+
+        product.setName(form.getName());
+        product.setPrice(form.getPrice());
+        product.setStockQuantity(form.getStockQuantity());
+        product.setSafetyStock(form.getSafetyStock());
+        product.setDescription(form.getDescription());
+
+        aiService.addProduct(product);
+    }
+    //상품 하나만 가져오기
+    public Product getProduct(Long id){
+        return productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다."));
     }
 }

@@ -120,6 +120,7 @@
         <th>현재고</th>
         <th>안전재고</th>
         <th>상태</th>
+        <th>관리</th>
     </tr>
     </thead>
     <tbody>
@@ -132,6 +133,9 @@
         <td>
             <span th:if="${item.stockQuantity < item.safetyStock}" class="badge bg-danger">🚨 발주필요</span>
             <span th:unless="${item.stockQuantity < item.safetyStock}" class="badge bg-success">정상</span>
+        </td>
+        <td>
+            <a th:href="@{/product/edit/{id}(id=${item.id})}" class="btn btn-sm btn-outline-primary">수정</a>
         </td>
     </tr>
     </tbody>

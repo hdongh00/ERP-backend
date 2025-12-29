@@ -27,8 +27,9 @@ public class OrderService {
         }
         Product product = productOpt.get();
         //AI가 읽고 바로 대답할 수 있도록 리턴
-        return String.format("확인 결과, '%s'의 현재 재고는 %d개입니다. (안전재고: %d개, 상태: %s)",
+        return String.format("확인 결과, '%s'의 단가는 %d원이며, 현재 재고는 %d개입니다. (안전재고: %d개, 상태: %s)",
                 product.getName(),
+                product.getPrice(),
                 product.getStockQuantity(),
                 product.getSafetyStock(),
                 (product.getStockQuantity() < product.getSafetyStock()) ? "재고 부족" : "정상");
