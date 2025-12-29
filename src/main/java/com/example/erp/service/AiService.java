@@ -1,5 +1,6 @@
 package com.example.erp.service;
 
+import com.example.erp.entity.Product;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -9,7 +10,9 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
@@ -79,5 +82,39 @@ public class AiService {
                 .functions( "cancelOrderFunction", "searchProductFunction", "draftOrderFunction", "listProductsFunction")
                 .call()
                 .content();
+    }
+    /**
+     * 상품 정보를 받아서 AI의 벡터데이터에 추가하는 기능
+     * DB에 저장될 때 실시간으로 동기화
+     */
+    public void addProduct(Product product){
+        List<Product> list = new ArrayList<>();
+        list.add(product);
+        addProducts(list);
+    }
+    public void addProducts(List<Product> productList){
+        List<Document> documents = new ArrayList<>();
+
+        for(Product p : productList){
+            //AI가 읽기 좋은 형태로 변환
+            String content = String.format(
+                    "상품명: %s, 가격: %d원, 설명: %s, 안전재고: %d",
+                    p.getName(),
+                    p.getPrice(),
+                    p.getStockQuantity() != null ? p.getDescription(): "설명 없음",
+                    p.getSafetyStock()
+            );
+
+            //메타 데이터 생성(나중에 ID로 삭제하거나 수정할 때 필요)
+            Map<String, Object> metadata = Map.of(
+                    "id", p.getId()
+            );
+
+            //문서 객체로 변환해서 리스트로
+            documents.add(new Document(content, metadata));
+        }
+        //벡터 저장소에 한 번에 저장
+        vectorStore.add(documents);
+        System.out.println("✅ AI 기억 저장소 업데이트 완료: " + productList.size() + "건");
     }
 }

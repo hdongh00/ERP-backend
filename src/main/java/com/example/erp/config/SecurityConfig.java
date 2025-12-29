@@ -30,7 +30,7 @@ public class SecurityConfig {
                 .formLogin(login -> login
                         .loginPage("/login")
                         .loginProcessingUrl("/login") //로그인 폼이 전송될 주소
-                        .defaultSuccessUrl("/", true) //로그인 성공 시 이동할 곳
+                        .defaultSuccessUrl("/", false) //로그인 성공 시 이동할 곳
                         .permitAll())
                 .logout(logout -> logout
                         .logoutSuccessUrl("/login")

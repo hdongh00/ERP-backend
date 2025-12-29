@@ -20,6 +20,7 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final AiService aiService;
 
     /**
      * 엑셀 업로드 (SI 핵심 기능)
@@ -47,8 +48,18 @@ public class ProductService {
                 int price = getCellValueAsInt(row.getCell(1));
                 int stock = getCellValueAsInt(row.getCell(2));
                 int safetyStock = getCellValueAsInt(row.getCell(3));
-
                 String description = getCellValueAsString(row.getCell(4));
+
+                //엑셀 데이터 유효성 검사
+                if (name.trim().isEmpty()) {
+                    throw new IllegalArgumentException((i+1) + "번째 줄 오류: 상품명은 필수입니다.");
+                }
+                if (price < 100) {
+                    throw new IllegalArgumentException((i+1) + "번째 줄 오류: 가격은 100원 이상이어야 합니다. (입력값: " + price + ")");
+                }
+                if (stock < 0 || safetyStock < 0) {
+                    throw new IllegalArgumentException((i+1) + "번째 줄 오류: 재고는 0개 이상이어야 합니다.");
+                }
                 //빌터 패턴으로 객체 생성
                 Product product = Product.builder()
                         .name(name)
@@ -59,9 +70,11 @@ public class ProductService {
                         .build();
                 productList.add(product);
             }
+            //DB에 저장
+            List<Product> savedList = productRepository.saveAll(productList);
 
-            //DB에 한 번에 저장, saveAll로 한 번에 처리
-            productRepository.saveAll(productList);
+            //AI 기억 저장소에 동기화
+            aiService.addProducts(savedList);
         }
     }
     //헬퍼 메서드
@@ -97,5 +110,13 @@ public class ProductService {
     //전체 상품 조회
     public List<Product> getAllProducts() {
         return productRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+    }
+    @Transactional
+    public void createProduct(Product product) {
+        //DB저장
+        Product savedProduct = productRepository.save(product);
+
+        //AI 동기화
+        aiService.addProduct(savedProduct);
     }
 }
