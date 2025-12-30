@@ -57,6 +57,13 @@ public class AiService {
                 4. 사용자가 **"전체 목록", "모든 품목", "리스트"**를 요청하면,
                    RAG(기억)를 뒤지지 말고 **'전체 목록 도구(listProductsFunction)'**를 사용해서 정확한 리스트를 가져오세요.
                    (이 도구는 품목명, 가격, 재고 수량, 상태를 모두 제공합니다.)
+                5. 사용자가 **"재고 부족한 거", "발주 필요한 품목", "뭐 사야 돼?"**라고 물어보면,
+                   절대로 전체 목록을 뒤지지 말고 **'재고 부족 탐지 도구(lowStockListFunction)'를 실행**하세요.
+                   (이 도구가 부족한 것만 정확하게 알려줍니다.)
+                6. 6. [매우 중요] 발주 수량을 결정할 때는 무조건 **(안전재고 - 현재 재고)**의 결과값으로 기안을 올리세요.
+                      - 예: 현재고 7, 안전재고 10 -> 3개 발주
+                      - 예: 현재고 16, 안전재고 20 -> 4개 발주
+                      - "1.5배", "넉넉하게" 같은 불확실한 규칙은 무시하세요.
                 
                 [매우 중요]
                 사용자가 **"발주해줘", "주문해줘", "사줘"**라고 요청하면,
@@ -80,7 +87,8 @@ public class AiService {
                 .advisors(new MessageChatMemoryAdvisor(chatMemory))
                 .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, "default")
                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
-                .functions( "cancelOrderFunction", "searchProductFunction", "draftOrderFunction", "listProductsFunction")
+                .functions( "cancelOrderFunction", "searchProductFunction",
+                        "draftOrderFunction", "listProductsFunction", "lowStockListFunction")
                 .call()
                 .content();
     }

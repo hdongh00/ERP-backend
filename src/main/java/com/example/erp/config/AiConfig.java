@@ -70,9 +70,9 @@ public class AiConfig {
             // 3. 회사 정책 문서 추가 (시뮬레이션 질문용)
             String policy = """
                     [우리 회사 안전재고 관리 정책]
-                    1. 모든 전자제품류(램, 모니터, 마우스 등)는 최소 안전재고를 유지해야 합니다.
-                    2. 재고가 부족할 경우, 평소 판매량의 1.5배 수준으로 넉넉하게 발주하는 것을 권장합니다.
-                    3. 발주 전에는 반드시 현재 실재고를 확인해야 합니다.
+                    1. 발주 수량은 반드시 **'안전재고 - 현재고'**의 공식에 따라 정확하게 계산해야 합니다.
+                    2. 절대 임의로 수량을 늘리거나 줄이지 마십시오.
+                    3. 부족한 수량만큼만 정확히 발주 기안을 올리십시오.
                     """;
             documents.add(new Document(policy));
 
@@ -94,6 +94,11 @@ public class AiConfig {
     @Description("사용자가 '전체 목록 보여줘', '품목 리스트 알려줘', '뭐 있어?' 같이 모든 상품을 궁금해할 때 사용하는 도구")
     public Function<ProductListRequest, String> listProductsFunction(OrderService orderService){
         return request -> orderService.getAllProductList();
+    }
+    @Bean
+    @Description("사용자가 '재고 부족한 거 알려줘', '발주 필요한 거 뭐 있어?' 같이 부족한 품목만 찾을 때 사용하는 기능")
+    public Function<ProductListRequest, String> lowStockListFunction(OrderService orderService){
+        return request -> orderService.getLowStockList();
     }
     //대화 내용 저장 메모리 저장소 생성
     @Bean

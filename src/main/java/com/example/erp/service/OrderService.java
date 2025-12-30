@@ -97,4 +97,21 @@ public class OrderService {
         }
         return sb.toString();
     }
+    @Transactional(readOnly = true)
+    public String getLowStockList(){
+        List<Product> products = productRepository.findLowStockProducts();
+
+        if(products.isEmpty()){
+            return "현재 재고가 부족한 품목이 없습니다. 모든 자재가 안전재고 이상입니다.";
+        }
+
+        StringBuilder sb = new StringBuilder("🚨 [재고 부족 품목 리스트]\n");
+        for(Product p : products){
+            //AI가 헷갈리지 않게 부족한 개수까지 계산
+            int deficit = p.getSafetyStock() - p.getStockQuantity();
+            sb.append(String.format("- %s : 현재 %d개 (안전재고 %d개) -> %d개 부족! (가격: %d원)\n",
+                    p.getName(), p.getStockQuantity(), p.getSafetyStock(), deficit, p.getPrice()));
+        }
+        return sb.toString();
+    }
 }
