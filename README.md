@@ -120,7 +120,6 @@
 ---
 
 ## 🏗️ 시스템 아키텍처 (System Architecture)
-
 ```mermaid
 graph TD
     User["사용자 (Web/Mobile)"] -->|HTTP Request| Security["Spring Security Filter"]
