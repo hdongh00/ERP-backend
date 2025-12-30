@@ -78,6 +78,15 @@ public class ProductController {
         Page<Product> paging = productRepository.findAll(pageable);
         //productList라는 이름을 붙여서 보여줌
         model.addAttribute("productList", paging);
+
+        //차트 그리기 위한 통계 데이터 계산
+        long totalCount = productRepository.count(); //전체 상품 수
+        long lowStockCount = productRepository.countLowStock(); //부족한 상품 수
+        long safeStockCount = totalCount - lowStockCount; //정상 상품 수
+
+        //HTML로 숫자 전달
+        model.addAttribute("lowStockCount", lowStockCount);
+        model.addAttribute("safeStockCount", safeStockCount);
         return "product/list";
     }
     @GetMapping("/product/edit/{id}")
