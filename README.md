@@ -116,7 +116,7 @@
 
 | AI 비서 (재고 조회 & 기안) | 결재 승인 (관리자 전용) |
 | :--: | :--: |
-| ![AI Chat](./images/aichat.png) | ![Approval](./images/approval.png). |
+| ![AI Chat](./images/aichat.png) | ![Approval](./images/approval.png) |
 | *RAG 기반 답변 및 발주 요청* | *기안된 문서 승인/반려 처리* |
 
 ---
