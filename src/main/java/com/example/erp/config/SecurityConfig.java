@@ -24,7 +24,7 @@ public class SecurityConfig {
                 //누구나 접근 가능
                 .requestMatchers("/login", "/css/**", "/js/**", "/error").permitAll()
                 //관리자만 접근 가능
-                .requestMatchers("api/approval/**", "/approval/**").hasRole("ADMIN")
+                .requestMatchers("api/approval/**", "/approval/list").hasRole("ADMIN")
                         .requestMatchers("/product/edit/**").hasRole("ADMIN")
                 //나머지는 다 로그인해야 가능
                 .anyRequest().authenticated())

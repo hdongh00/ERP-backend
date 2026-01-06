@@ -13,7 +13,7 @@ import java.util.Optional;
 @EnableJpaAuditing //JPA Auditing 기능
 public class AuditConfig {
     /**
-     * 등록자/ 수정자를 처리해준느 빈 등록
+     * 등록자/수정자를 처리해주는 빈 등록
      * DB에 저장/수정할 때마다 메서드 실행
      */
     @Bean

@@ -37,7 +37,7 @@ public class EmbeddingService {
             }
 
             //AI에게 학습시킬 문장 만들기
-            String content = String.format("상품명: %s, 가격: %d원, 설명: %s, 현재고: %d개, 안전재고: %d개",
+            String content = String.format("상품명: %s, 가격: %d원, 설명: %s, 현재고: %d개, 안전재고: %d개, 상태: %s",
                     product.getName(),
                     product.getPrice(),
                     product.getDescription(),

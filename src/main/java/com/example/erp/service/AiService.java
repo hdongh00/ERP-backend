@@ -34,7 +34,7 @@ public class AiService {
      * AI에게 최종 답변 요청
      */
     public String askAi(String question){
-        //벡터 저장소에서 질문과 가장 비슷한 문서 3개 검색
+        //벡터 저장소에서 질문과 가장 비슷한 문서 10개 검색
         List<Document> similarDocuments = vectorStore.similaritySearch(
                 SearchRequest.query(question).withTopK(10) //상위 10개만
         );

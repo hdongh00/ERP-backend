@@ -6,7 +6,7 @@ import lombok.*;
 @Entity
 @Table(name = "products") //테이블 명은 복수형으로 명시
 @Getter @Setter
-@NoArgsConstructor(access = AccessLevel.PUBLIC) // 기본 생성자 막아서 안전하게
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // 기본 생성자 막아서 안전하게
 @ToString(of = {"id", "name", "price"}) //로그 찍을 때 무한루프 방지
 public class Product extends BaseEntity {
 
@@ -59,6 +59,6 @@ public class Product extends BaseEntity {
         if(restStock < 0){
             throw new IllegalArgumentException("재고가 부족합니다.");
         }
-        this.stockQuantity -= restStock;
+        this.stockQuantity = restStock;
     }
 }
